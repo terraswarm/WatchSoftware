@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.willi.glassesble.MainActivity"
+    tools:deviceIds="wear">
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/raw_data"/>
+
+    <TextView
+        android:id="@+id/raw_data"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="@string/hello_world"
+        android:layout_above="@+id/switch_connect_btn" />
+
+    <Button
+        android:id="@+id/switch_connect_btn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:text="connect"/>
+
+</RelativeLayout>
