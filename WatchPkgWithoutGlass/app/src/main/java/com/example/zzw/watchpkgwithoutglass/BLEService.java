@@ -327,7 +327,7 @@ public class BLEService extends Service implements SensorEventListener{
                 }
                 if (sendSensorDataNum == DATA_NUM_LIMIT_SENSOR) { // if the number of samples are enough, form the package and send
                     for (int j = 0; j < (DATA_NUM_LIMIT_SENSOR / DATA_UNIT_SENSOR); j++) {
-                        ByteBuffer sendData = ByteBuffer.allocate(DATA_UNIT_SENSOR * BYTE_NUM_BATTERY_LIFE + BYTE_NUM_DEV_ID_AND_TYPE);
+                        ByteBuffer sendData = ByteBuffer.allocate(DATA_UNIT_SENSOR * BYTE_NUM_WATCH_SAMPLE + BYTE_NUM_DEV_ID_AND_TYPE);
                         sendData.put(DEV_ID.getBytes());
                         sendData.put(TYPE_WATCH.getBytes());
                         for (int i = (j * DATA_UNIT_SENSOR); i < ((j + 1) * DATA_UNIT_SENSOR); i++) {
