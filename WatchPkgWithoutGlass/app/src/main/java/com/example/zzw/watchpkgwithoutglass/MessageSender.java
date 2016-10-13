@@ -19,10 +19,10 @@ public class MessageSender {
 
     private DatagramSocket socket = null;
     private InetAddress serverAddress = null; // the address of server
-    private int servPort = 4566;
+    private int servPort = 4568;
 
     // the ip address of the server PC or android phone
-    private static final String Server_IP = "192.168.0.110";
+    /* private*/ static final String Server_IP = "10.32.0.36";
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
