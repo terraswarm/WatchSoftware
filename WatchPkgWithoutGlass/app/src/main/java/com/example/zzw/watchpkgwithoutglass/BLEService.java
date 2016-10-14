@@ -58,10 +58,10 @@ public class BLEService extends Service implements SensorEventListener{
     /**
      * variables related to the package sending frequency and number of samples in one package
      */
-    private static final int DATA_NUM_LIMIT_SENSOR = 250;
+    private static final int DATA_NUM_LIMIT_SENSOR = 1;
     private static final int DATA_NUM_LIMIT_GLASS = 200;
     private static final int DATA_NUM_LIMIT_ENVIRONMENT = 60;
-    private static final int DATA_UNIT_SENSOR = 250;
+    private static final int DATA_UNIT_SENSOR = 1;
     private static final int DATA_UNIT_GLASS = 200;
     private static final int DATA_UNIT_ENVIRONMENT = 60;
 
