@@ -5,20 +5,8 @@
     android:id="@+id/container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.example.willi.glassesble.MainActivity"
+    tools:context="com.example.zzw.watchpkgwithoutglass.MainActivity"
     tools:deviceIds="wear">
-    <TextView
-        android:id="@+id/name"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/raw_data"/>
-
-    <TextView
-        android:id="@+id/raw_data"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="@string/hello_world"
-        android:layout_above="@+id/switch_connect_btn" />
 
     <Button
         android:id="@+id/switch_connect_btn"
@@ -26,5 +14,27 @@
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:text="connect"/>
+    <LinearLayout
+        android:id="@+id/ip_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/switch_connect_btn"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true">
+        <Button
+            android:id="@+id/check_ip_btn"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:text="check ip"/>
 
+        <Button
+            android:id="@+id/input_ip_btn"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:text="change ip"
+            android:layout_alignBaseline="@+id/check_ip_btn"
+            android:layout_alignBottom="@+id/check_ip_btn"
+            android:layout_centerVertical="true" />
+        </LinearLayout>
 </RelativeLayout>

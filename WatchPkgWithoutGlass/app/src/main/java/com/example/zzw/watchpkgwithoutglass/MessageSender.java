@@ -19,15 +19,16 @@ public class MessageSender {
 
     private DatagramSocket socket = null;
     private InetAddress serverAddress = null; // the address of server
-    private int servPort = 4568;
+    private int servPort = 4570;
 
     // the ip address of the server PC or android phone
-    /* private*/ static final String Server_IP = "10.32.0.36";
+    private String Server_IP;
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
 
-    private MessageSender() {
+    private MessageSender(String ip) {
+        Server_IP = ip;
         executorService = Executors.newCachedThreadPool();
         try {
             serverAddress = InetAddress.getByName(Server_IP);
@@ -44,9 +45,9 @@ public class MessageSender {
 
     // It's a singleton class.
     private static MessageSender instance = null;
-    public static synchronized MessageSender getInstance() {
+    public static synchronized MessageSender getInstance(String ip) {
         if (instance == null) {
-            instance = new MessageSender();
+            instance = new MessageSender(ip);
         }
         return instance;
     }
