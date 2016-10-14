@@ -18,7 +18,7 @@ public class MainActivity extends WearableActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        final String id = "9 " + MessageSender.Server_IP;
+        final String id = " 10 " + MessageSender.Server_IP;
         setContentView(R.layout.activity_main);
         connectButton = (Button) findViewById(R.id.switch_connect_btn);
         if (isServiceRunning(BLEService.class)) {

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/WatchPkgWithoutGlass.iml" filepath="$PROJECT_DIR$/WatchPkgWithoutGlass.iml" />
+      <module fileurl="file://$PROJECT_DIR$/WatchSensorsUDP.iml" filepath="$PROJECT_DIR$/WatchSensorsUDP.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
