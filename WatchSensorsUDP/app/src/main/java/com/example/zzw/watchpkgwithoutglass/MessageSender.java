@@ -22,7 +22,9 @@ public class MessageSender {
     private int servPort = 4568;
 
     // the ip address of the server PC or android phone
-    /* private*/ static final String Server_IP = "10.32.0.36";
+    // static final String Server_IP = "192.168.1.237";
+    //static final String Server_IP = "10.0.0.255";
+    static final String Server_IP = "10.42.0.255";
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
@@ -59,7 +61,7 @@ public class MessageSender {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                Log.e("send bytes", "[send] " + BLEService.tohexString(data));
+                Log.e("send bytes", "[send] " + SensorService.tohexString(data));
                 DatagramPacket p = new DatagramPacket(data, data.length, serverAddress,
                         servPort);
                 try {

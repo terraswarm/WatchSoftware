@@ -14,14 +14,14 @@ public class MainActivity extends WearableActivity {
     private Button connectButton;
     public static final String STOP_ACTION = "STOP_BLE_SERVICE";
 
+    final String id = "_" + MessageSender.Server_IP;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        final String id = " 10 " + MessageSender.Server_IP;
         setContentView(R.layout.activity_main);
         connectButton = (Button) findViewById(R.id.switch_connect_btn);
-        if (isServiceRunning(BLEService.class)) {
+        if (isServiceRunning(SensorService.class)) {
             connectButton.setText("disconnect" + id);
         }else {
             connectButton.setText("connect" + id);
@@ -30,24 +30,24 @@ public class MainActivity extends WearableActivity {
         connectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (isServiceRunning(BLEService.class)) {
+                if (isServiceRunning(SensorService.class)) {
 
                     // send broadcast to stop the service
                     sendBroadcast(new Intent(STOP_ACTION));
                     connectButton.setText("connect" + id);
                 } else {
                     // start the service
-                    startBLEService();
-                    if (isServiceRunning(BLEService.class)) {
-                        connectButton.setText("disconnectSB4_7" + id);
+                    startSensorService();
+                    if (isServiceRunning(SensorService.class)) {
+                        connectButton.setText("disconnect" + id);
                     }
                 }
             }
         });
     }
 
-    private void startBLEService() {
-        startService(new Intent(this, BLEService.class));
+    private void startSensorService() {
+        startService(new Intent(this, SensorService.class));
     }
 
     /**

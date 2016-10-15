@@ -46,7 +46,8 @@ public class BLEService extends Service implements SensorEventListener{
     private int OFFSET_GYR = 10000;
     private int sensorStatus = STATUS_NONE;
     private byte[] lastData = null;
-    private int DELAY_20HZ = 50000;
+    private static final int DELAY_20HZ = 50000;
+    private static final int DELAY_10HZ = 100000;
 
     private MessageSender sender; // socket data sender object
 
@@ -165,8 +166,8 @@ public class BLEService extends Service implements SensorEventListener{
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); // get SensorManager
         accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); // get Accelerometer
         gyroSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE); // get Gyroscope
-        mSensorManager.registerListener(this, accSensor, DELAY_20HZ); // 20hz
-        mSensorManager.registerListener(this, gyroSensor, DELAY_20HZ); //20hz
+        mSensorManager.registerListener(this, accSensor, DELAY_10HZ); // 20hz
+        mSensorManager.registerListener(this, gyroSensor, DELAY_10HZ); //20hz
 
         new Thread(new Runnable() { // create a thread to make fake glass acc data package and glass environment data package
             @Override
@@ -197,6 +198,7 @@ public class BLEService extends Service implements SensorEventListener{
                 int ien = 0;
                 while (!shouldStop) {
                     try {
+                        // Thread.sleep(50);
                         Thread.sleep(50);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -232,6 +234,7 @@ public class BLEService extends Service implements SensorEventListener{
                         }
                         sendGlassDataNum = 0;
                     }
+                    /* FIXME: I don't know what glass data or environment data are, so I'm commenting this out.
 
                     if (ien % 20 == 0) {
                         ien = 0;
@@ -265,6 +268,7 @@ public class BLEService extends Service implements SensorEventListener{
                             sendEnvironmentDataNum = 0;
                         }
                     }
+                    */
                 }
             }
         }).start();
@@ -295,9 +299,10 @@ public class BLEService extends Service implements SensorEventListener{
     public void onSensorChanged(SensorEvent sensorEvent) {
         int sensorType = sensorEvent.sensor.getType();
 
-        //check the current data type, when acc and gyro sensor data are got, then add them to one sample
+        // Check the current data type, when acc and gyro sensor data are got, then add them to one sample
         // and push into the buffer, when one package is formed, then send the package to server
         if (sensorType == Sensor.TYPE_ACCELEROMETER) {
+            Log.d("send message", "Accelerometer data received.");
             if (sensorStatus == STATUS_NONE) { // only get the acc data, wait for the gyro data
                 lastData = float2ByteArray(sensorEvent.values, OFFSET_ACC);
                 sensorStatus = STATUS_ACC;
