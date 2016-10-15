@@ -43,14 +43,36 @@ import android.os.IBinder;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 
-/**
- * Service that sends watch sensor data using the helper class MessageSender.
- * <p>
- * Based on code by Roozbeh Jafari and his group.
+/** Service that sends watch sensor data using the helper class MessageSender.
+ *  This service sends out UDP packets (datagrams) consisting of a four-byte
+ *  watch ID, a one-byte message designator, followed by some number of bytes
+ *  of payload, followed finally by a time stamp.
+ *  The message designators currently supported are:
  *
- * @author Christopher Brooks and Edward A. Lee
+ *  "a": Accelerometer data. The payload is six bytes, with two bytes each
+ *       for x, y, and z data. The bytes are two's complement numbers with the
+ *       lower-order byte being sent first. Each two-byte number has a value
+ *       between -32768 and 32767. This is interpreted as representing
+ *       acceleration in meters per second squared multiplied by a
+ *       constant, SCALE_ACCELEROMETER = 836, so the receiver of these
+ *       bytes should divide by 836 to get units of m/s^2.
+ *
+ *  "g": Gyroscope data. The payload is six bytes, with two bytes each
+ *       for x, y, and z data. The bytes are two's complement numbers with the
+ *       lower-order byte being sent first. Each two-byte number has a value
+ *       between -32768 and 32767. This is interpreted as representing
+ *       rotation in radians per second multiplied by a
+ *       constant, SCALE_GYRO = 5208, so the receiver of these
+ *       bytes should divide by 5208 to get units of radians/s.
+ *
+ *  The sample period with which sensor data is read is determined by the
+ *  SAMPLE_PERIOD variable, which default to 100,000, for 10Hz samples.
+ *  FIXME: This should be settable on the watch.
+ *
+ *  FIXME: Document the time stamp.
+ *
+ *  @author Christopher Brooks, Edward A. Lee, and Ziwei (William) Zhu
  */
 public class SensorService extends Service implements SensorEventListener {
 
@@ -60,10 +82,10 @@ public class SensorService extends Service implements SensorEventListener {
     ///////////////////////////////////////////////////////////////////
     ////                         public methods                    ////
 
+    /** Initialize the UDP socket _sender. */
     public boolean initialize() {
-        // get the instance of the socket sender
-        sender = MessageSender.getInstance();
-
+        // Get the instance of the socket _sender.
+        _sender = MessageSender.getInstance();
         return true;
     }
 
@@ -85,18 +107,20 @@ public class SensorService extends Service implements SensorEventListener {
         startForeground(0, null); // make the server not able to be killed
     }
 
+    /** Unregister this class as a listener for sensor data. */
     @Override
     public void onDestroy() {
         unregisterReceiver(stopInfoReceiver);
         unregisterReceiver(mBatInfoReceiver);
-        mSensorManager.unregisterListener(this);
+        _mSensorManager.unregisterListener(this);
         stopForeground(true);
     }
 
-    /**
-     * When the sensor status changed, this function will be called.
-     *
-     * @param sensorEvent
+    /** React to new sensor data by sending a UDP packet. This is a
+     *  callback function that will be called when sensor data is available.
+     *  Note that this callback is misnamed. It is apparently called periodically
+     *  and it has nothing to do with whether the sensor data has changed.
+     *  @param sensorEvent An event containing the sensor type and data.
      */
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
@@ -104,73 +128,101 @@ public class SensorService extends Service implements SensorEventListener {
 
         // If the accelerometer is reporting, prepare a UDP packet for it.
         if (sensorType == Sensor.TYPE_ACCELEROMETER) {
-            Log.d("send message", "Accelerometer data received.");
-
-            // FIXME: Check to see whether the data has changed significantly.
-            // Currently this is done in the accessor, but it would be better to be done here.
-            // But this requires communicating back to the watch from the accessor.
-            // Same for gyro data below.
-
-            // Construct the bytes of the message to send.
-            ByteBuffer sendData = ByteBuffer.allocate(
-                    DEV_ID_AND_TYPE_SIZE + ACCELEROMETER_DATA_SIZE + TIME_STAMP_SIZE);
-            // Start with the device ID.
-            sendData.put(DEV_ID.getBytes());
-            // Start with the message type. Use "a" for accelerometer data.
-            sendData.put(ACCELEROMETER_MESSAGE.getBytes());
-            // Append accelerometer data.
-            sendData.put(float2ByteArray(sensorEvent.values, OFFSET_ACC));
-            // Append time stamp.
-            sendData.put(getTimeStampByteArray());
-            sender.send(sendData.array());
+            // Check to see whether the data has changed significantly.
+            // This is also done in the accessor, possibly with a different sensitivity.
+            boolean changed = false;
+            for (int i = 0; i < 3; i++) {
+                if (Math.abs(sensorEvent.values[i] - _previousAccelerometer[i])
+                        > SENSITIVITY_ACCELEROMETER) {
+                    changed = true;
+                }
+                _previousAccelerometer[i] = sensorEvent.values[i];
+            }
+            if (changed) {
+                // Construct the bytes of the message to send.
+                ByteBuffer sendData = ByteBuffer.allocate(
+                        DEV_ID_AND_TYPE_SIZE + ACCELEROMETER_DATA_SIZE + TIME_STAMP_SIZE);
+                // Start with the device ID.
+                sendData.put(DEVICE_ID.getBytes());
+                // Start with the message type. Use "a" for accelerometer data.
+                sendData.put(ACCELEROMETER_MESSAGE.getBytes());
+                // Append accelerometer data.
+                sendData.put(float2ByteArray(sensorEvent.values, SCALE_ACCELEROMETER));
+                // Append time stamp.
+                sendData.put(getTimeStampByteArray());
+                _sender.send(sendData.array());
+            }
 
         } else if (sensorType == Sensor.TYPE_GYROSCOPE) {
-            Log.d("send message", "Gyro data received.");
-
-            // Construct the bytes of the message to send.
-            ByteBuffer sendData = ByteBuffer.allocate(
-                    DEV_ID_AND_TYPE_SIZE + GYRO_DATA_SIZE + TIME_STAMP_SIZE);
-            // Start with the device ID.
-            sendData.put(DEV_ID.getBytes());
-            // Start with the message type. Use "g" for gyro data.
-            sendData.put(GYRO_MESSAGE.getBytes());
-            // Append accelerometer data.
-            sendData.put(float2ByteArray(sensorEvent.values, OFFSET_GYR));
-            // Append time stamp.
-            sendData.put(getTimeStampByteArray());
-            sender.send(sendData.array());
+            // Check to see whether the data has changed significantly.
+            // This is also done in the accessor, possibly with a different sensitivity.
+            boolean changed = false;
+            for (int i = 0; i < 3; i++) {
+                if (Math.abs(sensorEvent.values[i] - _previousGyro[i])
+                        > SENSITIVITY_GYRO) {
+                    changed = true;
+                }
+                _previousGyro[i] = sensorEvent.values[i];
+            }
+            if (changed) {
+                // Construct the bytes of the message to send.
+                ByteBuffer sendData = ByteBuffer.allocate(
+                        DEV_ID_AND_TYPE_SIZE + GYRO_DATA_SIZE + TIME_STAMP_SIZE);
+                // Start with the device ID.
+                sendData.put(DEVICE_ID.getBytes());
+                // Start with the message type. Use "g" for gyro data.
+                sendData.put(GYRO_MESSAGE.getBytes());
+                // Append accelerometer data.
+                sendData.put(float2ByteArray(sensorEvent.values, SCALE_GYRO));
+                // Append time stamp.
+                sendData.put(getTimeStampByteArray());
+                _sender.send(sendData.array());
+            }
         }
     }
 
+    /** Register this class as a listener for sensor data.
+     *
+     * @param intent The Intent supplied to {@link android.content.Context#startService},
+     * as given.  This may be null if the service is being restarted after
+     * its process has gone away, and it had previously returned anything
+     * except {@link #START_STICKY_COMPATIBILITY}.
+     * @param flags Additional data about this start request.  Currently either
+     * 0, {@link #START_FLAG_REDELIVERY}, or {@link #START_FLAG_RETRY}.
+     * @param startId A unique integer representing this specific request to
+     * start.  Use with {@link #stopSelfResult(int)}.
+     *
+     * @return The return value indicates what semantics the system should
+     * use for the service's current started state.  It may be one of the
+     * constants associated with the {@link #START_CONTINUATION_MASK} bits.
+     */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.v(TAG, "ServiceDemo onStartCommand");
         initialize();
 
-        // register the two broadcast receivers
+        // Register the two broadcast receivers.
+        // FIXME: Are these still used?
         IntentFilter filter = new IntentFilter();
         filter.addAction(MainActivity.STOP_ACTION);
         registerReceiver(stopInfoReceiver, filter);
         registerReceiver(mBatInfoReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 
-        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); // get SensorManager
-        accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); // get Accelerometer
-        gyroSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE); // get Gyroscope
-        mSensorManager.registerListener(this, accSensor, DELAY_10HZ); // 20hz
-        mSensorManager.registerListener(this, gyroSensor, DELAY_10HZ); //20hz
+        _mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); // get SensorManager
+        Sensor accSensor = _mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); // get Accelerometer
+        Sensor gyroSensor = _mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE); // get Gyroscope
+        _mSensorManager.registerListener(this, accSensor, SAMPLE_PERIOD);
+        _mSensorManager.registerListener(this, gyroSensor, SAMPLE_PERIOD);
 
         return super.onStartCommand(intent, flags, startId);
     }
 
-
-    /**
-     * Convert the bytes array to string in order to print.
-     *
-     * @param bytes The bytes to be converted.
-     * @return hex string
+    /** Convert a byte array to a string in hex in order to print.
+     *  @param bytes The bytes to be converted.
+     *  @return A hex string.
      */
-    public static String tohexString(byte[] bytes) {
-        StringBuffer buffer = new StringBuffer();
+    public static String toHexString(byte[] bytes) {
+        StringBuilder buffer = new StringBuilder();
         if (bytes == null) {
             return "(null)";
         }
@@ -185,27 +237,39 @@ public class SensorService extends Service implements SensorEventListener {
     ///////////////////////////////////////////////////////////////////
     ////                         private methods                   ////
 
-    /**
-     * Convert float array with three entries into a 6 byte array.
+    /** Convert float array with three entries into a 6 byte array.
+     *  Each float is first scaled by the scale parameter.
+     *  If the result is greater than 32767 (2^15-1), then it
+     *  is first saturated to 32767. If the scaled result is less
+     *  than -32768, then it is saturated to -32768.
      *
-     * @param values A three element array.
-     * @return A 6 byte array.
+     *  @param values A three element array.
+     *  @param scale A scaling factor to apply before converting.
+     *  @return A 6 byte array.
      */
-    private byte[] float2ByteArray(float[] values, int offset) {
+    private byte[] float2ByteArray(float[] values, int scale) {
         byte[] bytes = new byte[6];
-        bytes[0] = (byte) (((short) (values[0] * offset)) & 0xff);
-        bytes[1] = (byte) ((((short) (values[0] * offset)) & 0xff00) >> 8);
-        bytes[2] = (byte) (((short) (values[1] * offset)) & 0xff);
-        bytes[3] = (byte) ((((short) (values[1] * offset)) & 0xff00) >> 8);
-        bytes[4] = (byte) (((short) (values[2] * offset)) & 0xff);
-        bytes[5] = (byte) ((((short) (values[2] * offset)) & 0xff00) >> 8);
+        for (int i = 0; i < 3; i++) {
+            float value = values[i] * scale;
+            if (value > 32767) {
+                value = 32767;
+            } else if (value < -32768) {
+                value = -32768;
+            }
+            values[i] = value;
+        }
+        bytes[0] = (byte) (((short) values[0]) & 0xff);
+        bytes[1] = (byte) ((((short) values[0]) & 0xff00) >> 8);
+        bytes[2] = (byte) (((short) values[1]) & 0xff);
+        bytes[3] = (byte) ((((short) values[1]) & 0xff00) >> 8);
+        bytes[4] = (byte) (((short) values[2]) & 0xff);
+        bytes[5] = (byte) ((((short) values[2]) & 0xff00) >> 8);
         return bytes;
     }
 
-    /**
-     * Get the time stamp as a 6 byte array.
-     *
-     * @return A 6 byte array (the first 4 bytes represents seconds, the last 2 bytes milliseconds)
+    /** Get a time stamp from the current system time as a 6 byte array.
+     *  @return A 6 byte array, where the first 4 bytes represents seconds
+     *    and the last 2 bytes milliseconds since January 1, 1970.
      */
     private static byte[] getTimeStampByteArray() {
         long timeStamp = System.currentTimeMillis();
@@ -222,39 +286,25 @@ public class SensorService extends Service implements SensorEventListener {
     }
 
     /**
-     * Convert int value to 3 bytes array.
-     *
-     * @param value
-     * @return 3 bytes array
-     */
-    private byte[] int23ByteArray(int value) {
-        ByteBuffer bb = ByteBuffer.allocate(3);
-        bb.put(((byte) (value & 0xff)));
-        bb.put(((byte) ((value >> 8) & 0xff)));
-        bb.put(((byte) ((value >> 16) & 0xff)));
-        return bb.array();
-    }
-
-    /**
      * Waiting for the battery life change broadcast, every 3% changed
      * send a notification to the server.
+     * FIXME: This needs a pass and better documentation.
      */
     private BroadcastReceiver mBatInfoReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context ctxt, Intent intent) {
             int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
-            if (lastBattery == -1) {
-                lastBattery = level;
-                return;
+            if (_lastBattery == -1) {
+                _lastBattery = level;
             } else {
-                if (level - lastBattery >= 3) {
+                if (level - _lastBattery >= 3) {
                     Log.d(TAG, "battery " + String.valueOf(level));
-                    ByteBuffer bb = ByteBuffer.allocate(DEV_ID_AND_TYPE_SIZE + BYTE_NUM_BATTERY_LIFE);
-                    bb.put(DEV_ID.getBytes());
+                    ByteBuffer bb = ByteBuffer.allocate(DEV_ID_AND_TYPE_SIZE + BATTERY_LIFE_SIZE);
+                    bb.put(DEVICE_ID.getBytes());
                     bb.put(TYPE_BATTERY.getBytes());
                     bb.put(((byte) (level & 0xff)));
                     bb.put(getTimeStampByteArray());
-                    sender.send(bb.array());
+                    _sender.send(bb.array());
                 }
             }
         }
@@ -263,6 +313,7 @@ public class SensorService extends Service implements SensorEventListener {
     /**
      * Waiting for the stop broadcast, when received start to
      * disconnect the glasses and stop the service.
+     * FIXME: Is this still needed? We don't have glasses.
      */
     private final BroadcastReceiver stopInfoReceiver = new BroadcastReceiver() {
         @Override
@@ -270,7 +321,6 @@ public class SensorService extends Service implements SensorEventListener {
 
             String action = intent.getAction();
             if (action.equals(MainActivity.STOP_ACTION)) {
-                shouldStop = true;
                 stopSelf();
             }
         }
@@ -281,77 +331,80 @@ public class SensorService extends Service implements SensorEventListener {
 
     private static final String TAG = "Sensor Service";
 
-    /**
-     * Variables related to the watch IMU setting.
+    /** Sensor manager for which this class is a listener.  */
+    private SensorManager _mSensorManager;
+
+    /** Scaling factor to apply to accelerometer data before
+     *  converting to a two-byte integer. The accelerometer data
+     *  is provided by the watch in SI units of meters per second squared,
+     *  so one g is about 9.8 m/s^2.  If we want to be able to measure
+     *  4 g's, then we need 9.8 * 4 * SCALE_ACCELEROMETER to be no larger
+     *  than 32768 = 2^15.  So a reasonable scaling factor is
+     *  32768 /(9.8 * 4) = 836.
      */
-    private static final int STATUS_ACC = 1;
-    private static final int STATUS_GYR = 2;
-    private static final int STATUS_NONE = 0;
-    private SensorManager mSensorManager;
-    private Sensor accSensor;
-    private Sensor gyroSensor;
-    private int OFFSET_ACC = 1000;
-    private int OFFSET_GYR = 10000;
-    private int sensorStatus = STATUS_NONE;
-    private byte[] lastData = null;
-    private static final int DELAY_20HZ = 50000;
-    private static final int DELAY_10HZ = 100000;
+    private static final int SCALE_ACCELEROMETER = 836;
 
-    private MessageSender sender; // socket data sender object
+    /** The sensitivity of the accelerometer in m/s^2.
+     *  If no accelerometer reading differs from the previous
+     *  accelerometer reading by more than this amount, then no
+     *  message will be sent.
+     *  FIXME: This should be settable somehow on the watch.
+     */
+    private static final float SENSITIVITY_ACCELEROMETER = 0.5f;
 
-    // Message types.
+    /** The previous accelerometer reading, to be used to determine
+     *  whether the data has changed by more than the sensitivity.
+     */
+    private float[] _previousAccelerometer = {-100.0f, -100.0f, -100.0f};
+
+    /** Scaling factor to apply to gyroscope data before
+     *  converting to a two-byte integer. The gyroscope data
+     *  is provided by the watch in units of radians per second.
+     *  If we want to be able to measure rotation velocities up to
+     *  about one revolution per second (2 * PI radians per second),
+     *  then we need 2 * 3.1459 * SCALE_GYRO to be no larger
+     *  than 32768 = 2^15.  So a reasonable scaling factor is
+     *  32768 /(2 * 3.1459) = 5208.
+     */
+    private static final int SCALE_GYRO = 5208;
+
+    /** The sensitivity of the gyro in radians/s.
+     *  If no gyro reading differs from the previous
+     *  gyro reading by more than this amount, then no
+     *  message will be sent.
+     *  FIXME: This should be settable somehow on the watch.
+     */
+    private static final float SENSITIVITY_GYRO = 0.5f;
+
+    /** The previous accelerometer reading, to be used to determine
+     *  whether the data has changed by more than the sensitivity.
+     */
+    private float[] _previousGyro = {-100.0f, -100.0f, -100.0f};
+
+    /** The message _sender that handles sending datagrams. */
+    private MessageSender _sender;
+
+    /** Message types designator for accelerometer data. */
     private static final String ACCELEROMETER_MESSAGE = "a";
+
+    /** Message types designator for gyroscope data. */
     private static final String GYRO_MESSAGE = "g";
+
+    /** Message types designator for battery data. */
+    private static final String TYPE_BATTERY = "b";
+
+    /** Sample period in microseconds. 100000 is 10Hz. */
+    private static final int SAMPLE_PERIOD = 100000;
 
     // Constants indicating sizes in bytes of payload data.
     private static final int ACCELEROMETER_DATA_SIZE = 6;
     private static final int DEV_ID_AND_TYPE_SIZE = 4 + 1;
     private static final int GYRO_DATA_SIZE = 6;
     private static final int TIME_STAMP_SIZE = 6;
+    private static final int BATTERY_LIFE_SIZE = 1 + 6;
 
-    /**
-     * Variables related to the package sending frequency and number of samples in one package.
-     */
-    private static final int DATA_NUM_LIMIT_SENSOR = 24;
-    private static final int DATA_NUM_LIMIT_GLASS = 20;
-    private static final int DATA_NUM_LIMIT_ENVIRONMENT = 60;
-    private static final int DATA_UNIT_SENSOR = 24;
-    private static final int DATA_UNIT_GLASS = 20;
-    private static final int DATA_UNIT_ENVIRONMENT = 60;
+    /** Device ID. */
+    private static final String DEVICE_ID = Build.SERIAL.substring(6);
 
-    /**
-     * Sample' size of each package.
-     */
-    private static final int BYTE_NUM_WATCH_SAMPLE = 2 * 6 + 3 + 1 + 6;
-    private static final int BYTE_NUM_GLASS_SAMPLE = 2 * 3 + 6;
-    private static final int BYTE_NUM_BATTERY_LIFE = 1 + 6;
-    private static final int BYTE_NUM_ENVIRONMENT_SAMPLE = 2 * 5 + 6;
-
-    /**
-     * Indicators of samples number.
-     */
-    private int sendSensorDataNum = 0;
-    private int sendGlassDataNum = 0;
-    private int sendEnvironmentDataNum = 0;
-
-    /**
-     * Buffer of the package.
-     */
-    private ArrayList<byte[]> sensorDataBuffer;
-    private ArrayList<byte[]> glassDataBuffer;
-    private ArrayList<byte[]> environmentDataBuffer;
-
-    /**
-     * Variables related to package members.
-     */
-    private static final String DEV_ID = Build.SERIAL.substring(6);
-    private static final String TYPE_WATCH = "w";
-    private static final String TYPE_GLASS = "g";
-    private static final String TYPE_ENVIRONMENT = "e";
-    private static final String TYPE_BATTERY = "b";
-    private int ppg = 100000;
-    private int hr = 70;
-    private int lastBattery = -1;
-
-    private boolean shouldStop = false;
+    private int _lastBattery = -1;
 }

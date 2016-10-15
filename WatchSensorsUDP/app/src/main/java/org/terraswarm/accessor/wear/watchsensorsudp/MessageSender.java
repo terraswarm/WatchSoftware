@@ -79,7 +79,7 @@ public class MessageSender {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                Log.e("send bytes", "[send] " + SensorService.tohexString(data));
+                Log.e("send bytes", "[send] " + SensorService.toHexString(data));
                 DatagramPacket p = new DatagramPacket(data, data.length, serverAddress,
                         servPort);
                 try {
@@ -96,8 +96,8 @@ public class MessageSender {
 
     // The ip address of the server PC or android phone
     // static final String Server_IP = "192.168.1.237";
-    // static final String Server_IP = "10.0.0.255";
-    static final String Server_IP = "10.42.0.255";
+    static final String Server_IP = "10.0.0.255";
+    // static final String Server_IP = "10.42.0.255";
 
     ///////////////////////////////////////////////////////////////////
     ////                         private variables                 ////
