@@ -19,16 +19,17 @@ public class MessageSender {
 
     private DatagramSocket socket = null;
     private InetAddress serverAddress = null; // the address of server
-    private int servPort = 4570;
+    private static int servPort;
 
     // the ip address of the server PC or android phone
-    private String Server_IP;
+    private static String Server_IP;
 
     // Since asynchronous/blocking functions should not run on the UI thread.
     private ExecutorService executorService;
 
-    private MessageSender(String ip) {
+    private MessageSender(String ip, int port) {
         Server_IP = ip;
+        servPort = port;
         executorService = Executors.newCachedThreadPool();
         try {
             serverAddress = InetAddress.getByName(Server_IP);
@@ -45,9 +46,12 @@ public class MessageSender {
 
     // It's a singleton class.
     private static MessageSender instance = null;
-    public static synchronized MessageSender getInstance(String ip) {
+    public static synchronized MessageSender getInstance(String ip, int port) {
         if (instance == null) {
-            instance = new MessageSender(ip);
+            instance = new MessageSender(ip, port);
+        } else {
+            servPort = port;
+            Server_IP = ip;
         }
         return instance;
     }
@@ -60,7 +64,7 @@ public class MessageSender {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                Log.e("send bytes", "[send] " + BLEService.tohexString(data));
+                Log.e("send bytes", "[send] " + BLEService.tohexString(data) + Server_IP + " : " + servPort);
                 DatagramPacket p = new DatagramPacket(data, data.length, serverAddress,
                         servPort);
                 try {

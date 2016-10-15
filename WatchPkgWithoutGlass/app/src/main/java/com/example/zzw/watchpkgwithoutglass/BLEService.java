@@ -53,6 +53,7 @@ public class BLEService extends Service implements SensorEventListener{
     private int DELAY_20HZ = 50000;
 
     private String ip;
+    private int portNum;
     private MessageSender sender; // socket data sender object
 
     /**
@@ -170,7 +171,10 @@ public class BLEService extends Service implements SensorEventListener{
         note.flags |= Notification.FLAG_NO_CLEAR;
 
         startForeground(1234, note); // make the server not able to be killed
-        ip = intent.getExtras().getString(MainActivity.IP_SAVED_KEY);
+        String[] ipPortArray = intent.getExtras().getString(MainActivity.IP_SAVED_KEY).split(":");
+        ip = ipPortArray[0];
+        portNum = Integer.parseInt(ipPortArray[1]);
+        Log.e(TAG, "" + portNum);
 
         ppgDataBuffer = new ArrayList<>();
         initialize();
@@ -297,7 +301,7 @@ public class BLEService extends Service implements SensorEventListener{
 
     public boolean initialize() {
         // get the instance of the socket sender
-        sender = MessageSender.getInstance(ip);
+        sender = MessageSender.getInstance(ip, portNum);
 
         return true;
     }

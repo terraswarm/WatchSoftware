@@ -31,7 +31,7 @@ public class MainActivity extends WearableActivity {
 
         //get saved ip address
         sharedPref = getPreferences(Context.MODE_PRIVATE);
-        ip = sharedPref.getString(IP_SAVED_KEY, "192.168.0.128");
+        ip = sharedPref.getString(IP_SAVED_KEY, "10.42.0.255:4568");
 
         setContentView(R.layout.activity_main);
         connectButton = (Button) findViewById(R.id.switch_connect_btn);

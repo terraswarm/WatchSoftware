@@ -42,6 +42,7 @@ public class KeyboardActivity extends WearableActivity {
         final Button num0 = (Button) findViewById(R.id.num0);
         final Button bksp = (Button) findViewById(R.id.backspace);
         final Button point = (Button) findViewById(R.id.point);
+        final Button colon = (Button) findViewById(R.id.colon);
         final Button enter = (Button) findViewById(R.id.enter);
 
         // Set up the buttons to do what we want them to do
@@ -129,6 +130,14 @@ public class KeyboardActivity extends WearableActivity {
             public void onClick(View v) {
                 ip = ip.replace("|", ""); // Remove cursor from name
                 ip = ip + ".|"; // Add a space and the cursor back
+                mTextTitle.setText(ip);
+            }
+        });
+
+        colon.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                ip = ip.replace("|", ""); // Remove cursor from name
+                ip = ip + ":|"; // Add a space and the cursor back
                 mTextTitle.setText(ip);
             }
         });
