@@ -184,7 +184,8 @@ public class SensorService extends Service implements SensorEventListener {
         }
     }
 
-    /** Register this class as a listener for sensor data.
+    /** Register this class as a listener for sensor data and set the service to
+     *  not sleep so that sensor data is continually sent.
      *
      * @param intent The Intent supplied to {@link android.content.Context#startService},
      * as given.  This may be null if the service is being restarted after
@@ -204,16 +205,20 @@ public class SensorService extends Service implements SensorEventListener {
         Log.v(TAG, "ServiceDemo onStartCommand");
         initialize();
 
-        // acquire a cpu wake lock
+        // Acquire a CPU wake lock.
         PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
         _wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WatchletWakeLock");
         _wakeLock.acquire();
 
-        Notification.Builder builder = new Notification.Builder(this); // create a default notification
+        // Create a default notification.
+        Notification.Builder builder = new Notification.Builder(this);
         Notification note = builder.build();
         note.flags |= Notification.FLAG_NO_CLEAR;
 
-        startForeground(1234, note); // set the service as a foreground service with a notification to remind the user
+        // Set the service as a foreground service with a notification to remind the user.
+        // A foreground service will not be killed to reclaim memory.
+        // The first argument is an ID, apparently arbitrary.
+        startForeground(1234, note);
 
         // Register the two broadcast receivers.
         // FIXME: Are these still used?
@@ -227,6 +232,8 @@ public class SensorService extends Service implements SensorEventListener {
         Sensor gyroSensor = _mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE); // get Gyroscope
         _mSensorManager.registerListener(this, accSensor, SAMPLE_PERIOD);
         _mSensorManager.registerListener(this, gyroSensor, SAMPLE_PERIOD);
+
+        super.onStartCommand(intent, flags, startId);
 
         return Service.START_STICKY; // make the service not to be killed, if be killed it will restart itself again
     }
@@ -422,6 +429,6 @@ public class SensorService extends Service implements SensorEventListener {
 
     private int _lastBattery = -1;
 
-    /** Wake lock to make the cpu still work when the screen dim. */
+    /** Wake lock to make the CPU still work when the screen dims. */
     private PowerManager.WakeLock _wakeLock;
 }
