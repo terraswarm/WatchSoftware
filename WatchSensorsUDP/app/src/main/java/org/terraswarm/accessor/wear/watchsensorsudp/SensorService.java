@@ -28,6 +28,7 @@ ENHANCEMENTS, OR MODIFICATIONS.
 */
 package org.terraswarm.accessor.wear.watchsensorsudp;
 
+import android.app.Notification;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -40,6 +41,7 @@ import android.hardware.SensorManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -113,6 +115,7 @@ public class SensorService extends Service implements SensorEventListener {
         unregisterReceiver(stopInfoReceiver);
         unregisterReceiver(mBatInfoReceiver);
         _mSensorManager.unregisterListener(this);
+        _wakeLock.release();
         stopForeground(true);
     }
 
@@ -201,6 +204,17 @@ public class SensorService extends Service implements SensorEventListener {
         Log.v(TAG, "ServiceDemo onStartCommand");
         initialize();
 
+        // acquire a cpu wake lock
+        PowerManager mgr = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        _wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WatchletWakeLock");
+        _wakeLock.acquire();
+
+        Notification.Builder builder = new Notification.Builder(this); // create a default notification
+        Notification note = builder.build();
+        note.flags |= Notification.FLAG_NO_CLEAR;
+
+        startForeground(1234, note); // set the service as a foreground service with a notification to remind the user
+
         // Register the two broadcast receivers.
         // FIXME: Are these still used?
         IntentFilter filter = new IntentFilter();
@@ -214,7 +228,7 @@ public class SensorService extends Service implements SensorEventListener {
         _mSensorManager.registerListener(this, accSensor, SAMPLE_PERIOD);
         _mSensorManager.registerListener(this, gyroSensor, SAMPLE_PERIOD);
 
-        return super.onStartCommand(intent, flags, startId);
+        return Service.START_STICKY; // make the service not to be killed, if be killed it will restart itself again
     }
 
     /** Convert a byte array to a string in hex in order to print.
@@ -407,4 +421,7 @@ public class SensorService extends Service implements SensorEventListener {
     private static final String DEVICE_ID = Build.SERIAL.substring(6);
 
     private int _lastBattery = -1;
+
+    /** Wake lock to make the cpu still work when the screen dim. */
+    private PowerManager.WakeLock _wakeLock;
 }
