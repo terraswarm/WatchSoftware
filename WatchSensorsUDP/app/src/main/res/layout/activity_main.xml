@@ -24,7 +24,27 @@
         android:id="@+id/switch_connect_btn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:text="connect"/>
+        android:text="connect"
+        android:layout_marginTop="30dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
+
+    <SeekBar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/seekBar"
+        android:contentDescription="Sensitivity"
+        android:contextClickable="true"
+        android:layout_below="@+id/switch_connect_btn"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="44dp" />
+
+    <TextView
+        android:text="Sensitivity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView"
+        android:layout_below="@+id/seekBar"
+        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>

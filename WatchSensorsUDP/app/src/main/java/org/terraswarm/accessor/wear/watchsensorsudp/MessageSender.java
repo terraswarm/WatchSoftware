@@ -79,7 +79,7 @@ public class MessageSender {
         executorService.submit(new Runnable() {
             @Override
             public void run() {
-                Log.e("send bytes", "[send] " + SensorService.toHexString(data));
+                Log.d("send bytes", "[send] " + SensorService.toHexString(data));
                 DatagramPacket p = new DatagramPacket(data, data.length, serverAddress,
                         servPort);
                 try {

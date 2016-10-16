@@ -52,7 +52,7 @@ import java.nio.ByteBuffer;
  *  of payload, followed finally by a time stamp.
  *  The message designators currently supported are:
  *
- *  "a": Accelerometer data. The payload is six bytes, with two bytes each
+ *  "A": Accelerometer data. The payload is six bytes, with two bytes each
  *       for x, y, and z data. The bytes are two's complement numbers with the
  *       lower-order byte being sent first. Each two-byte number has a value
  *       between -32768 and 32767. This is interpreted as representing
@@ -60,7 +60,7 @@ import java.nio.ByteBuffer;
  *       constant, SCALE_ACCELEROMETER = 836, so the receiver of these
  *       bytes should divide by 836 to get units of m/s^2.
  *
- *  "g": Gyroscope data. The payload is six bytes, with two bytes each
+ *  "G": Gyroscope data. The payload is six bytes, with two bytes each
  *       for x, y, and z data. The bytes are two's complement numbers with the
  *       lower-order byte being sent first. Each two-byte number has a value
  *       between -32768 and 32767. This is interpreted as representing
@@ -83,6 +83,24 @@ public class SensorService extends Service implements SensorEventListener {
 
     ///////////////////////////////////////////////////////////////////
     ////                         public methods                    ////
+
+    /** Get the accelerometer sensitivity as a fraction of full scale.
+     *  This service will not send a UDP packet
+     *  unless at least one of the accelerometer readings exceeds this value in magnitude.
+     *  @return The sensitivity as a fraction of full scale, between 0.0 and 1.0.
+     */
+    public static double getAccelerometerSensitivity() {
+        return _sensitivityAccelerometer * SCALE_ACCELEROMETER / 32768.0;
+    }
+
+    /** Get the gyroscope sensitivity as a fraction of full scale.
+     *  This service will not send a UDP packet
+     *  unless at least one of the gyro readings exceeds this value in magnitude.
+     *  @return The sensitivity as a fraction of full scale, between 0.0 and 1.0.
+     */
+    public static double getGyroSensitivity() {
+        return _sensitivityGyro * SCALE_GYRO / 32768.0;
+    }
 
     /** Initialize the UDP socket _sender. */
     public boolean initialize() {
@@ -136,7 +154,7 @@ public class SensorService extends Service implements SensorEventListener {
             boolean changed = false;
             for (int i = 0; i < 3; i++) {
                 if (Math.abs(sensorEvent.values[i] - _previousAccelerometer[i])
-                        > SENSITIVITY_ACCELEROMETER) {
+                        > _sensitivityAccelerometer) {
                     changed = true;
                 }
                 _previousAccelerometer[i] = sensorEvent.values[i];
@@ -147,7 +165,7 @@ public class SensorService extends Service implements SensorEventListener {
                         DEV_ID_AND_TYPE_SIZE + ACCELEROMETER_DATA_SIZE + TIME_STAMP_SIZE);
                 // Start with the device ID.
                 sendData.put(DEVICE_ID.getBytes());
-                // Start with the message type. Use "a" for accelerometer data.
+                // Start with the message type. Use "A" for accelerometer data.
                 sendData.put(ACCELEROMETER_MESSAGE.getBytes());
                 // Append accelerometer data.
                 sendData.put(float2ByteArray(sensorEvent.values, SCALE_ACCELEROMETER));
@@ -162,7 +180,7 @@ public class SensorService extends Service implements SensorEventListener {
             boolean changed = false;
             for (int i = 0; i < 3; i++) {
                 if (Math.abs(sensorEvent.values[i] - _previousGyro[i])
-                        > SENSITIVITY_GYRO) {
+                        > _sensitivityGyro) {
                     changed = true;
                 }
                 _previousGyro[i] = sensorEvent.values[i];
@@ -173,7 +191,7 @@ public class SensorService extends Service implements SensorEventListener {
                         DEV_ID_AND_TYPE_SIZE + GYRO_DATA_SIZE + TIME_STAMP_SIZE);
                 // Start with the device ID.
                 sendData.put(DEVICE_ID.getBytes());
-                // Start with the message type. Use "g" for gyro data.
+                // Start with the message type. Use "G" for gyro data.
                 sendData.put(GYRO_MESSAGE.getBytes());
                 // Append accelerometer data.
                 sendData.put(float2ByteArray(sensorEvent.values, SCALE_GYRO));
@@ -236,6 +254,24 @@ public class SensorService extends Service implements SensorEventListener {
         super.onStartCommand(intent, flags, startId);
 
         return Service.START_STICKY; // make the service not to be killed, if be killed it will restart itself again
+    }
+
+    /** Set the accelerometer sensitivity. This service will not send a UDP packet
+     *  unless at least one of the accelerometer readings exceeds this value in magnitude.
+     *  @param sensitivity The sensitivity on a scale of 0.0 to 1.0, interpreted as a fraction
+     *                     of full scale.
+     */
+    public static void setAccelerometerSensitivity(double sensitivity) {
+        _sensitivityAccelerometer = (float) (sensitivity * 32768.0 / SCALE_ACCELEROMETER);
+    }
+
+    /** Set the gyroscope sensitivity. This service will not send a UDP packet
+     *  unless at least one of the gyro readings exceeds this value in magnitude.
+     *  @param sensitivity The sensitivity on a scale of 0.0 to 1.0, interpreted as a fraction
+     *                     of full scale.
+     */
+    public static void setGyroSensitivity(double sensitivity) {
+        _sensitivityGyro = (float) (sensitivity * 32768.0 / SCALE_GYRO);
     }
 
     /** Convert a byte array to a string in hex in order to print.
@@ -365,13 +401,17 @@ public class SensorService extends Service implements SensorEventListener {
      */
     private static final int SCALE_ACCELEROMETER = 836;
 
-    /** The sensitivity of the accelerometer in m/s^2.
+    /** The default sensitivity of the accelerometer in m/s^2.
      *  If no accelerometer reading differs from the previous
      *  accelerometer reading by more than this amount, then no
      *  message will be sent.
-     *  FIXME: This should be settable somehow on the watch.
      */
     private static final float SENSITIVITY_ACCELEROMETER = 0.5f;
+
+    /** The actual sensitivity of the accelerometer in m/s^2.
+     *  This defaults to SENSITIVITY_ACCELEROMETER.
+     */
+    private static float _sensitivityAccelerometer = SENSITIVITY_ACCELEROMETER;
 
     /** The previous accelerometer reading, to be used to determine
      *  whether the data has changed by more than the sensitivity.
@@ -397,6 +437,11 @@ public class SensorService extends Service implements SensorEventListener {
      */
     private static final float SENSITIVITY_GYRO = 0.5f;
 
+    /** The actual sensitivity of the gyroscope in radians/second.
+     *  This defaults to SENSITIVITY_GYRO.
+     */
+    private static float _sensitivityGyro = SENSITIVITY_GYRO;
+
     /** The previous accelerometer reading, to be used to determine
      *  whether the data has changed by more than the sensitivity.
      */
@@ -406,10 +451,10 @@ public class SensorService extends Service implements SensorEventListener {
     private MessageSender _sender;
 
     /** Message types designator for accelerometer data. */
-    private static final String ACCELEROMETER_MESSAGE = "a";
+    private static final String ACCELEROMETER_MESSAGE = "A";
 
     /** Message types designator for gyroscope data. */
-    private static final String GYRO_MESSAGE = "g";
+    private static final String GYRO_MESSAGE = "G";
 
     /** Message types designator for battery data. */
     private static final String TYPE_BATTERY = "b";

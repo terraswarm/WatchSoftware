@@ -35,16 +35,18 @@ import android.os.Bundle;
 import android.support.wearable.activity.WearableActivity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.SeekBar;
+import android.util.Log;
 
-/**
- * Create a Moto 360 Watch activity.
+/** A Moto 360 Watch activity that sends sensor data to a specified IP address
  *
  * @author Ziwei Zhu (Roozbeh Jafari and his group at TAMU), Edward A. Lee.  Contributor: Christopher Brooks
  */
-public class MainActivity extends WearableActivity {
+public class MainActivity extends WearableActivity
+        implements SeekBar.OnSeekBarChangeListener {
     public static final String STOP_ACTION = "STOP_BLE_SERVICE";
 
-    final String id = " 20 " + MessageSender.Server_IP;
+    final String id = " v2 " + MessageSender.Server_IP;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,17 +77,83 @@ public class MainActivity extends WearableActivity {
                 }
             }
         });
+
+        _seekBar = (SeekBar) findViewById(R.id.seekBar);
+        _seekBar.setOnSeekBarChangeListener(this);
+
+        // Set the slider to indicate the sensitivity.
+        // Note that we use the same slider for gyro and accelerometer,
+        // but read the accelerometer sensitivity.
+        double sensitivity = SensorService.getAccelerometerSensitivity();
+        int percentage = sensitivityToPercentage(sensitivity);
+        Log.d("setup", "Setting slider to " + percentage + " based on sensitivity " + sensitivity);
+        _seekBar.setProgress(percentage);
     }
+
+    /** React to a change in the seekBar slider setting by setting the sensitivity of the
+     *  seensors.
+     *  @param seekBar The seek bar.
+     *  @param progress A number between 0 and 100 indicating the seek bar position.
+     *  @param fromUser True if this comes from the user.
+     */
+    public void onProgressChanged (SeekBar seekBar,
+                                   int progress,
+                                   boolean fromUser) {
+        double sensitivity = percentageToSensitivity(progress);
+        Log.d("slider", "Slider set to " + progress + " resulting in sensitivity " + sensitivity);
+        SensorService.setAccelerometerSensitivity(sensitivity);
+        SensorService.setGyroSensitivity(sensitivity);
+    };
+
+    public void onStartTrackingTouch (SeekBar seekBar) {};
+
+    public void onStopTrackingTouch (SeekBar seekBar) {};
 
     ///////////////////////////////////////////////////////////////////
     ////                         private methods                   ////
 
+    /** Convert a percentage (from the SeekBar slider) to a sensitivity
+     *  using a highly non-linear scale and a reversal, so that 100 maps
+     *  to 0.0 (meaning full sensitivity... all measurements are above
+     *  threshold) and 0 maps to 1.0 (no sensitivity).
+     *  @param percentage The percentage of the slider bar.
+     *  @return The sensitivity on a scale of 0.0 to 1.0.
+     */
+    private double percentageToSensitivity(int percentage) {
+        if (percentage == 0) {
+            return 1.0;
+        } else if (percentage == 100) {
+            return 0.0;
+        } else {
+            return 1.0 - Math.pow(percentage/100.0, 1.0/16);
+        }
+    }
+
+    /** Convert a sensitivity as a fraction from 0.0 to 1.0
+     *  to a percentage for the SeekBar slider using a highly non-linear scale
+     *  and a reversal so that 0.0 maps to 100 and 1.0 maps to 0.
+     *  @param sensitivity The sensitivity on a scale of 0.0 to 1.0.
+     *  @return A percentage for the SeekerBar.
+     */
+    private int sensitivityToPercentage(double sensitivity) {
+        double raw = Math.pow(1.0 - sensitivity, 16.0);
+        if (raw <= 0.0) {
+            return 0;
+        } else if (raw >= 1.0) {
+            return 100;
+        } else {
+            return (int) Math.round(100 * raw);
+        }
+    }
+
+    /** Start the sensor service.
+     */
     private void startSensorService() {
         startService(new Intent(this, SensorService.class));
     }
 
-    /**
-     * Check whether the service is running.
+    /** Return true if the service is running.
+     *  @return True if the service is running.
      */
     private boolean isServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
@@ -102,5 +170,9 @@ public class MainActivity extends WearableActivity {
 
     private final static String TAG = "MainActiviy";
 
+    /** The button to connect and disconnect. */
     private Button _connectButton;
+
+    /** The slider used to set the sensitivity. */
+    private SeekBar _seekBar;
 }
