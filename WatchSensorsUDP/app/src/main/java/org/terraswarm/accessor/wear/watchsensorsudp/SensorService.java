@@ -157,9 +157,12 @@ public class SensorService extends Service implements SensorEventListener {
                         > _sensitivityAccelerometer) {
                     changed = true;
                 }
-                _previousAccelerometer[i] = sensorEvent.values[i];
             }
             if (changed) {
+                for (int i = 0; i < 3; i++) {
+                    // Record the previous value we send, not the previous value read.
+                    _previousAccelerometer[i] = sensorEvent.values[i];
+                }
                 // Construct the bytes of the message to send.
                 ByteBuffer sendData = ByteBuffer.allocate(
                         DEV_ID_AND_TYPE_SIZE + ACCELEROMETER_DATA_SIZE + TIME_STAMP_SIZE);
@@ -183,9 +186,12 @@ public class SensorService extends Service implements SensorEventListener {
                         > _sensitivityGyro) {
                     changed = true;
                 }
-                _previousGyro[i] = sensorEvent.values[i];
             }
             if (changed) {
+                for (int i = 0; i < 3; i++) {
+                    // Record the previous value sent, not the previous value read.
+                    _previousGyro[i] = sensorEvent.values[i];
+                }
                 // Construct the bytes of the message to send.
                 ByteBuffer sendData = ByteBuffer.allocate(
                         DEV_ID_AND_TYPE_SIZE + GYRO_DATA_SIZE + TIME_STAMP_SIZE);
@@ -406,7 +412,7 @@ public class SensorService extends Service implements SensorEventListener {
      *  accelerometer reading by more than this amount, then no
      *  message will be sent.
      */
-    private static final float SENSITIVITY_ACCELEROMETER = 0.5f;
+    private static final float SENSITIVITY_ACCELEROMETER = 1.0f;
 
     /** The actual sensitivity of the accelerometer in m/s^2.
      *  This defaults to SENSITIVITY_ACCELEROMETER.
@@ -435,7 +441,7 @@ public class SensorService extends Service implements SensorEventListener {
      *  message will be sent.
      *  FIXME: This should be settable somehow on the watch.
      */
-    private static final float SENSITIVITY_GYRO = 0.5f;
+    private static final float SENSITIVITY_GYRO = 1.0f;
 
     /** The actual sensitivity of the gyroscope in radians/second.
      *  This defaults to SENSITIVITY_GYRO.
@@ -460,7 +466,7 @@ public class SensorService extends Service implements SensorEventListener {
     private static final String TYPE_BATTERY = "b";
 
     /** Sample period in microseconds. 100000 is 10Hz. */
-    private static final int SAMPLE_PERIOD = 100000;
+    private static final int SAMPLE_PERIOD = 500000;
 
     // Constants indicating sizes in bytes of payload data.
     private static final int ACCELEROMETER_DATA_SIZE = 6;
